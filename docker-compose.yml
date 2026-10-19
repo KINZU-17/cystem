@@ -1,10 +1,8 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # Nginx Load Balancer & Reverse Proxy
   nginx-lb:
     image: nginx:alpine
-    container_name: cystem_nginx_lb
     ports:
       - "80:80"
     volumes:
@@ -12,81 +10,73 @@ services:
     depends_on:
       - backend-1
       - backend-2
+      - frontend
 
-  # Backend Instance 1
+  frontend:
+    build: ./client
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_MPESA_API_URL=http://nginx-lb/api
+    depends_on:
+      - backend-1
+
   backend-1:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: cystem_backend_1
+    build: ./server
     environment:
-      - DATABASE_URL=postgresql://cystem_user:cystem_secure_pass@db:5432/cystem_db
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET_KEY=cystem_prod_master_secret_2026
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - MPESA_CONSUMER_KEY=${MPESA_CONSUMER_KEY}
+      - MPESA_CONSUMER_SECRET=${MPESA_CONSUMER_SECRET}
+      - MPESA_SHORTCODE=${MPESA_SHORTCODE}
+      - MPESA_PASSKEY=${MPESA_PASSKEY}
+      - MPESA_CALLBACK_URL=${MPESA_CALLBACK_URL}
+      - MPESA_SANDBOX=${MPESA_SANDBOX}
     depends_on:
       - db
-      - redis
-    restart: unless-stopped
 
-  # Backend Instance 2 (Redundancy & Load Distribution)
   backend-2:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: cystem_backend_2
+    build: ./server
     environment:
-      - DATABASE_URL=postgresql://cystem_user:cystem_secure_pass@db:5432/cystem_db
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET_KEY=cystem_prod_master_secret_2026
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - MPESA_CONSUMER_KEY=${MPESA_CONSUMER_KEY}
+      - MPESA_CONSUMER_SECRET=${MPESA_CONSUMER_SECRET}
+      - MPESA_SHORTCODE=${MPESA_SHORTCODE}
+      - MPESA_PASSKEY=${MPESA_PASSKEY}
+      - MPESA_CALLBACK_URL=${MPESA_CALLBACK_URL}
+      - MPESA_SANDBOX=${MPESA_SANDBOX}
     depends_on:
       - db
-      - redis
-    restart: unless-stopped
 
-  # Primary PostgreSQL Database
   db:
     image: postgres:15-alpine
-    container_name: cystem_postgres_db
     environment:
-      POSTGRES_USER: cystem_user
-      POSTGRES_PASSWORD: cystem_secure_pass
-      POSTGRES_DB: cystem_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
 
-  # Redis Caching & Queue Broker
   redis:
     image: redis:alpine
-    container_name: cystem_redis
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
 
-  # Automated Database Backup Service (Dumps every 6 hours)
   db-backup:
     image: postgres:15-alpine
-    container_name: cystem_db_backup
     depends_on:
       - db
     environment:
       - PGHOST=db
-      - PGUSER=cystem_user
-      - PGPASSWORD=cystem_secure_pass
-      - PGDATABASE=cystem_db
+      - PGUSER=${POSTGRES_USER}
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - PGDATABASE=${POSTGRES_DB}
     volumes:
       - ./backups:/backups
-    entrypoint: |
-      sh -c "echo 'Starting automated PostgreSQL 6-hour backup loop...' &&
-             while true; do
-               filename=/backups/cystem_backup_$$(date +%Y%m%d_%H%M%S).sql;
-               pg_dump > $$filename;
-               echo 'Database backup saved successfully to $$filename';
-               sleep 21600;
-             done"
-    restart: unless-stopped
+    entrypoint: >
+      sh -c "while true; do
+        pg_dump > /backups/cystem_$$(date +%Y%m%d_%H%M%S).sql;
+        sleep 21600;
+      done"
 
 volumes:
   pgdata:
