@@ -1,0 +1,18 @@
+{
+  "name": "CYSTEM — Tactical Pursuit & Wagering",
+  "short_name": "CYSTEM",
+  "description": "High-stakes real-world outdoor hide-and-seek battle royale with live camera verification and M-Pesa wagering.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+name: CYSTEM CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-verify:
+    name: Backend Security & Match Engine Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r server/requirements.txt
+          pip install httpx
+
+      - name: Execute CYSTEM Master Test Suite
+        env:
+          DATABASE_URL: "sqlite:///./test_cystem.db"
+          JWT_SECRET_KEY: "test_secret_for_ci_cd_pipeline"
+        run: |
+          PYTHONPATH=./server python server/tests/run_tests.py
+
+      - name: Verify Docker Container Build
+        run: |
+          docker build -t cystem-backend:ci ./server
